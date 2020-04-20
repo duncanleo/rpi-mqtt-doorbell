@@ -100,7 +100,7 @@ func main() {
 	go debounce(1*time.Second, eventChan, func() {
 		log.Println("Button press!")
 
-		token := client.Publish(*topic, 0, false, nil)
+		token := client.Publish(*topic, 0, false, time.Now().Format(time.RFC1123Z))
 		if token.Error() != nil {
 			log.Println(token.Error())
 		}

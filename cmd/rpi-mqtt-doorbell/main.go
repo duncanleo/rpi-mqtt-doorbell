@@ -106,20 +106,6 @@ func main() {
 		}
 	})
 
-	// Button press loop
-	go func() {
-		var previousRpioState rpio.State
-		for {
-			var rpioState = rpioPin.Read()
-			if rpioState == rpio.Low && previousRpioState != rpioState {
-				// Button press
-				eventChan <- "press"
-			}
-			previousRpioState = rpioState
-			time.Sleep(time.Millisecond * 100)
-		}
-	}()
-
 	// LED loop
 	go func() {
 		if *ledGpioPin == -1 {
@@ -135,4 +121,18 @@ func main() {
 			time.Sleep(time.Millisecond * 50)
 		}
 	}()
+
+	log.Println("Started... waiting for button press")
+
+	// Button press loop
+	var previousRpioState rpio.State
+	for {
+		var rpioState = rpioPin.Read()
+		if rpioState == rpio.Low && previousRpioState != rpioState {
+			// Button press
+			eventChan <- "press"
+		}
+		previousRpioState = rpioState
+		time.Sleep(time.Millisecond * 100)
+	}
 }

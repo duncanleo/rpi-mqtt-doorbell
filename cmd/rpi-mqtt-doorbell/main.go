@@ -82,7 +82,8 @@ func main() {
 
 	go func() {
 		for isPressed := range eventChan {
-			if time.Now().Sub(lastPublish).Seconds() <= 10 {
+			// Only debounce isPressed=true. A hack but it should be okay in reality
+			if isPressed && time.Now().Sub(lastPublish).Seconds() <= 10 {
 				continue
 			}
 

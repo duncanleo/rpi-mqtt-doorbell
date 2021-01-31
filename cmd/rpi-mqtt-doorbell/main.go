@@ -14,25 +14,6 @@ import (
 	rpio "github.com/stianeikeland/go-rpio/v4"
 )
 
-// Adapted from https://play.golang.org/p/N4TTxDuWrFo
-func debounce(interval time.Duration, eventChan chan string, callback func()) {
-	var event string
-	for range eventChan {
-	L:
-		for {
-			select {
-			case event = <-eventChan:
-				// Do nothing
-			case <-time.After(interval):
-				if event != "" {
-					callback()
-					break L
-				}
-			}
-		}
-	}
-}
-
 func connect(clientID string, uri *url.URL) (mqtt.Client, error) {
 	var opts = mqtt.NewClientOptions()
 	opts.AddBroker(fmt.Sprintf("tcp://%s", uri.Host))
@@ -85,7 +66,7 @@ func main() {
 		ledRpioPin.PullDown()
 	}
 
-	var eventChan = make(chan string)
+	var eventChan = make(chan bool)
 
 	c := make(chan os.Signal)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
@@ -97,14 +78,24 @@ func main() {
 		os.Exit(1)
 	}()
 
-	go debounce(3*time.Second, eventChan, func() {
-		log.Println("Button press!")
+	go func() {
+		for isPressed := range eventChan {
 
-		token := client.Publish(*topic, 0, false, time.Now().Format(time.RFC1123Z))
-		if token.Error() != nil {
-			log.Println(token.Error())
+			log.Printf("Button event! isPressed=%+v\n", isPressed)
+
+			var message = "OFF"
+
+			if isPressed {
+				message = "ON"
+			}
+
+			token := client.Publish(*topic, 0, true, message)
+			if token.Error() != nil {
+				log.Println(token.Error())
+			}
 		}
-	})
+
+	}()
 
 	// LED loop
 	go func() {
@@ -128,9 +119,13 @@ func main() {
 	var previousRpioState rpio.State
 	for {
 		var rpioState = rpioPin.Read()
-		if rpioState == rpio.Low && previousRpioState != rpioState {
+		if previousRpioState == rpioState {
+			previousRpioState = rpioState
+			continue
+		}
+		if previousRpioState != rpioState {
 			// Button press
-			eventChan <- "press"
+			eventChan <- rpioState == rpio.Low
 		}
 		previousRpioState = rpioState
 		time.Sleep(time.Millisecond * 100)

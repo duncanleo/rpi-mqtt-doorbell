@@ -39,6 +39,8 @@ func main() {
 	var clientID = flag.String("clientID", "rpi-mqtt-doorbell", "client ID for MQTT")
 	var topic = flag.String("topic", "rpi-mqtt-doorbell", "MQTT topic to publish")
 
+	var lastPublish = time.Now()
+
 	flag.Parse()
 
 	err := rpio.Open()
@@ -80,6 +82,9 @@ func main() {
 
 	go func() {
 		for isPressed := range eventChan {
+			if time.Now().Sub(lastPublish).Seconds() <= 10 {
+				continue
+			}
 
 			log.Printf("Button event! isPressed=%+v\n", isPressed)
 
@@ -90,6 +95,7 @@ func main() {
 			}
 
 			token := client.Publish(*topic, 0, true, message)
+			lastPublish = time.Now()
 			if token.Error() != nil {
 				log.Println(token.Error())
 			}
